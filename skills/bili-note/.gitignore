@@ -1,27 +1,20 @@
-# 本机评测/备份产物（不应进入公开仓库）
-*.bak
-*.bak-*
-diagnostics.tsv
-results.tsv
-
-# Python / 运行时
 __pycache__/
 *.py[cod]
 *$py.class
+
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
 .coverage
 htmlcov/
 
-# 环境与日志
 .env
 .env.*
 !.env.example
+
 tmp/
 tmp_*/
 *.log
 
-# 通用
 .DS_Store
 Thumbs.db

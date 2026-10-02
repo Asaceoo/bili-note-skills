@@ -1,0 +1,61 @@
+name: Validate Skills
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate skill packages
+        run: |
+          set -euo pipefail
+          failures=0
+
+          # 1) 每个 skills/* 目录必须有 SKILL.md 且含合法 frontmatter
+          for skill in skills/*/; do
+            [ -f "$skill/SKILL.md" ] || { echo "FAIL: $skill 缺 SKILL.md"; failures=$((failures+1)); continue; }
+            # frontmatter 必须以 --- 开头和结尾，且含 name + description
+            head -1 "$skill/SKILL.md" | grep -q '^---$' || { echo "FAIL: $skill frontmatter 缺起始 ---"; failures=$((failures+1)); }
+            awk 'NR<=12 && /^name:/{n=1} NR<=12 && /^description:/{d=1}' "$skill/SKILL.md" || true
+            if ! head -12 "$skill/SKILL.md" | grep -q '^name:'; then echo "FAIL: $skill frontmatter 缺 name"; failures=$((failures+1)); fi
+            if ! head -12 "$skill/SKILL.md" | grep -q '^description:'; then echo "FAIL: $skill frontmatter 缺 description"; failures=$((failures+1)); fi
+            # 校验结束符：第 2-6 行之间应有 ---
+            if ! sed -n '2,6p' "$skill/SKILL.md" | grep -q '^---$'; then echo "FAIL: $skill frontmatter 缺结束 ---"; failures=$((failures+1)); fi
+            echo "OK: $skill SKILL.md frontmatter 完整"
+          done
+
+          # 2) 无 __pycache__ / .pyc / .bak 等不应提交的文件
+          if find . -name '__pycache__' -o -name '*.pyc' -o -name '*.bak' -o -name '*.bak-*' | grep -q .; then
+            echo "FAIL: 发现不应提交的文件"
+            find . -name '__pycache__' -o -name '*.pyc' -o -name '*.bak' -o -name '*.bak-*'
+            failures=$((failures+1))
+          else
+            echo "OK: 无缓存/备份残留"
+          fi
+
+          # 3) 无硬编码真实凭据（宽松启发式）
+          if grep -rnE '(sk-[A-Za-z0-9]{20,}|ghp_[A-Za-z0-9]{30,}|AIza[A-Za-z0-9_-]{30,})' skills/ 2>/dev/null | grep -q .; then
+            echo "FAIL: 疑似硬编码凭据"
+            grep -rnE '(sk-[A-Za-z0-9]{20,}|ghp_[A-Za-z0-9]{30,}|AIza[A-Za-z0-9_-]{30,})' skills/
+            failures=$((failures+1))
+          else
+            echo "OK: 无硬编码凭据"
+          fi
+
+          # 4) 无本机绝对路径泄漏（D:\ C:\ /Users/）
+          if grep -rnE 'D:\\\\bilibili|C:\\\\Users|/Users/[a-z]+' skills/ 2>/dev/null | grep -q .; then
+            echo "FAIL: 发现本机绝对路径"
+            grep -rnE 'D:\\\\bilibili|C:\\\\Users|/Users/[a-z]+' skills/
+            failures=$((failures+1))
+          else
+            echo "OK: 无本机绝对路径"
+          fi
+
+          [ "$failures" -eq 0 ] || { echo "共 $failures 项失败"; exit 1; }
+          echo "全部校验通过 ✓"

@@ -51,9 +51,9 @@ agent_created: true
 
 本技能是标准 WorkBuddy / Claude-style 技能包，`SKILL.md` 含 frontmatter（`name` + `description` 触发词）。安装方式任选其一：
 
-- **手动**：把整个目录复制到你的技能目录，例如 `~/.workbuddy/skills/bili-content-enhance/` 或 `~/.claude/skills/bili-content-enhance/`。
-- **git clone**：`git clone https://github.com/Asaceoo/bili-note-skills.git ~/.workbuddy/skills/bili-content-enhance`
-- **符号链接**：保留仓库位置，在技能目录建软链指向 `SKILL.md` 所在目录。
+- **手动**：从仓库 `skills/bili-content-enhance/` 取出整个目录，复制到你的技能目录，例如 `~/.workbuddy/skills/bili-content-enhance/` 或 `~/.claude/skills/bili-content-enhance/`。
+- **git clone**：`git clone https://github.com/Asaceoo/bili-note-skills.git`，然后 `cp -r bili-note-skills/skills/bili-content-enhance ~/.workbuddy/skills/`。
+- **sparse checkout**：`git clone --filter=blob:none --sparse <仓库> && git sparse-checkout set skills/bili-content-enhance`
 
 使用前提：你会用 AI 编程助手（如 WorkBuddy / Claude Code / Codex），并有一份带 `[mm:ss]` 时间戳的 B 站转录稿 markdown（可用 bili-note / Bili-Note 工具抓取转写）。本技能不依赖任何外部 API 密钥，由当前 AI 模型直接执行 6 类提示词。
 
