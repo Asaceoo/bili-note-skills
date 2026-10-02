@@ -1,0 +1,9 @@
+# 本机评测/备份产物（不应进入公开仓库）
+*.bak
+*.bak-*
+diagnostics.tsv
+results.tsv
+
+# 通用
+.DS_Store
+Thumbs.db
