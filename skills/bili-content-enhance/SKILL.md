@@ -31,7 +31,7 @@ agent_created: true
 6. 落盘判据：源 md 位于用户本地视频转录输出目录（如 `D:\bilibili\output\`）下时，落盘到其所属 `output/<视频名>/学习包/`（`<视频名>` 取源 md 的父目录名）；否则一律落盘到源 md 同级 `学习包/` 目录。二选一，禁止自造路径。
 
 ## 质量门禁（轻量实现）
-用 Node 读 6 文件；无 Node 环境时降级为人工逐项核对下述规则。
+用随技能附带的 `scripts/validate.js`（Node，零第三方依赖）对学习包目录执行校验：`node scripts/validate.js <学习包目录>`。无 Node 环境时降级为人工逐项核对下述规则。
 - HTML：正则查 `src/href=["']https?:` 应为 false；抽取 `<script>` 内容过 `new vm.Script()` 验证 JS 语法。
 - mermaid：抽 ` ```mermaid ` 块，查存在 `root(`（多行 `/^\s*root\(/m`）、节点数 ≤20、节点行无 `[ ] " '`。
 - ② 表：行以 `|` 开头且非分隔行，数据行数 8–15，每行 4 列均非空。
@@ -45,7 +45,8 @@ agent_created: true
 - **任务状态偶发 EPERM**：TaskUpdate 瞬时 rename 失败可重试一次。
 
 ## 输出
-学习包目录含 6 文件：`①智能摘要.md ②术语表与通俗解释.md ③知识导图.md ④动画表达.html ⑤补充知识.md ⑥深度学习与理解文档.md`（+ 可选 `_validate.js` 审计脚本）。
+学习包目录含 6 文件：`①智能摘要.md ②术语表与通俗解释.md ③知识导图.md ④动画表达.html ⑤补充知识.md ⑥深度学习与理解文档.md`。
+生成后可用随技能附带的 `scripts/validate.js` 复跑质量门禁：`node scripts/validate.js <学习包目录>`。
 
 ## 安装（开源版）
 
