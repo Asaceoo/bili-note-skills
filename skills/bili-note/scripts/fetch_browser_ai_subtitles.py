@@ -1,6 +1,7 @@
 """Fetch Bilibili AI subtitles through an already-open logged-in browser page.
 
-This helper uses the web-access CDP proxy. It does not read browser cookies.
+This helper uses a generic CDP proxy exposing /targets and /eval
+(WorkBuddy web-access is one implementation). It does not read browser cookies.
 Instead, it asks the Bilibili page to call the same player API it uses:
 
     https://api.bilibili.com/x/player/wbi/v2
@@ -153,7 +154,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Fetch Bilibili AI subtitles from a logged-in browser target")
     parser.add_argument("--target", required=True, help="CDP target id of an open Bilibili video tab")
     parser.add_argument("--out", required=True, help="Output directory")
-    parser.add_argument("--cdp-base", default="http://localhost:3456", help="web-access CDP proxy base URL")
+    parser.add_argument("--cdp-base", default="http://localhost:3456", help="CDP proxy base URL (any implementation exposing /targets and /eval)")
     parser.add_argument("--batch-size", type=int, default=6)
     parser.add_argument("--sleep-ms", type=int, default=150)
     parser.add_argument("--limit", type=int, default=0, help="Optional max parts to fetch, 0 means all")

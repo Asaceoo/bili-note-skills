@@ -221,8 +221,12 @@ def evaluate_environment(
         },
         "browser_ai_subtitles": {
             "ok": bool(core_ok and web_access.get("ok")),
-            "needs": ["Chrome", "web-access skill", "open logged-in Bilibili video tab", "CDP target id"],
-            "supported_browser": "Chrome via web-access proxy",
+            "needs": [
+                "a logged-in browser page",
+                "a CDP proxy exposing /targets and /eval (default http://localhost:3456)",
+                "CDP target id",
+            ],
+            "supported_browser": "any logged-in browser via a CDP proxy (WorkBuddy web-access is one implementation)",
             "web_access": web_access,
         },
         "audio_asr_fallback": {
@@ -248,7 +252,10 @@ def evaluate_environment(
     if core_ok and not bilibili_api.get("ok"):
         recommendations.append("Check network access to Bilibili public APIs before running the default extraction path.")
     if core_ok and not web_access.get("ok"):
-        recommendations.append("Browser AI subtitles need Chrome + web-access plus an opened logged-in Bilibili video page.")
+        recommendations.append(
+            "Browser AI subtitles need a logged-in browser page plus a CDP proxy "
+            "(/targets and /eval, default http://localhost:3456) exposing that tab."
+        )
     if core_ok and not commands["ffmpeg"]["ok"]:
         recommendations.append("Install ffmpeg before using audio ASR fallback.")
     if core_ok and not qwen.get("ok"):
@@ -297,10 +304,12 @@ def print_human(report: dict[str, Any]) -> None:
     api = capabilities["public_subtitles_comments_archive"]["bilibili_api"]
     print(f"  Bilibili API: {'reachable' if api.get('reachable') else 'not reachable'}")
     print("  Python packages: stdlib only")
-    print(f"- Browser AI subtitles (Chrome + web-access): {mark(capabilities['browser_ai_subtitles']['ok'])}")
+    print(
+        f"- Browser AI subtitles (logged-in browser + CDP proxy): {mark(capabilities['browser_ai_subtitles']['ok'])}"
+    )
     web_access = capabilities["browser_ai_subtitles"]["web_access"]
     print(
-        "  web-access: "
+        "  CDP proxy: "
         f"{'reachable' if web_access.get('reachable') else 'not reachable'}, "
         f"targets={web_access.get('target_count', 0)}"
     )
@@ -326,7 +335,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--json", action="store_true", help="Print machine-readable JSON")
     parser.add_argument("--strict", action="store_true", help="Exit non-zero when the core workflow is unavailable")
-    parser.add_argument("--cdp-url", default="http://localhost:3456/targets", help="web-access targets endpoint")
+    parser.add_argument("--cdp-url", default="http://localhost:3456/targets", help="CDP proxy targets endpoint (any implementation)")
     parser.add_argument("--api-url", default="https://api.bilibili.com/x/web-interface/nav", help="Bilibili public API probe endpoint")
     parser.add_argument("--timeout", type=float, default=0.7, help="CDP probe timeout in seconds")
     args = parser.parse_args()

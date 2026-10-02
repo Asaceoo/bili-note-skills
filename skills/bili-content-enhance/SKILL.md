@@ -1,7 +1,6 @@
 ---
 name: bili-content-enhance
 description: 把一份 B 站转录稿/学习 markdown，按 Bili-Note 的 6 类内容增强提示词（智能摘要/术语表/知识导图/动画HTML/补充知识/深度理解文档）生成学习包，并做格式校验后落盘。当用户说"用提示词跑一份文档 / 生成学习包 / 按 ai_learning_prompts 生成"时触发。
-agent_created: true
 ---
 
 # Bili-Note 内容增强（6 类物料）
@@ -9,6 +8,20 @@ agent_created: true
 把一份 markdown 转录稿/学习材料，按 `references/ai_learning_prompts.md`（v3.1）的 6 类提示词，生成一份完整学习包，并做质量门禁校验后落盘。
 
 > 提示词规范文件已随本技能打包在 `references/ai_learning_prompts.md`，无需外部依赖。若该文件缺失，以本流程第 3 步的输出契约为准继续，勿中断。
+
+## 跨平台与 Agent 兼容性
+
+本技能**不绑定任何 AI Agent 平台**：全部逻辑由当前模型直接执行，门禁脚本 `scripts/validate.js` 只用 Node 内置模块（零第三方依赖）。`SKILL.md` 是唯一入口。
+
+| 平台 / 形态 | 怎么用 |
+|---|---|
+| WorkBuddy / CodeBuddy | 放到 `~/.workbuddy/skills/bili-content-enhance/` |
+| Claude Code / Claude Desktop | 放到 `~/.claude/skills/bili-content-enhance/` |
+| Codex CLI | 放到 `~/.codex/skills/bili-content-enhance/` |
+| Cursor / Cline / Roo Code / Continue | 放到 `.cursor/skills/` 或等价规则目录，并把 `SKILL.md` 加入上下文规则 |
+| Gemini CLI / OpenHands / Aider | 把 `SKILL.md` 作为项目规则或自定义指令引入 |
+| WPS AI / 豆包 / 通义 / 不支持技能目录的助手 | 把 `SKILL.md` 全文贴进系统提示词，或作为上下文文件随转录稿一起发给模型 |
+| 纯手工（无 Agent） | 按 `references/ai_learning_prompts.md` 的 6 类提示词自行执行，再用 `node scripts/validate.js <目录>` 跑门禁 |
 
 ## 触发
 - 用户给出一份 md（转录稿/学习材料），要求"用提示词跑一份文档""生成学习包""按 ai_learning_prompts 生成"。
@@ -28,7 +41,7 @@ agent_created: true
 5. **校验**（见下）后再落盘：mermaid 轻量语法、HTML 自包含无外链且内联 JS 过 `new vm.Script`、表格 4 列非空、① 含 `## 智能摘要` 且章节 3–8、⑤ 四节+📹/➕、⑥ 各节+`- [ ]`。
    - 🛑 STOP：任一校验不过 → 停止，不得静默落盘；同一物料最多重生成 2 次，仍不过则报告失败项与原因，待用户决定修复或放行。
    - 🔴 CHECKPOINT：全部通过后、落盘前，向用户展示 6 份物料校验摘要（文件名 + 过/不过），确认后执行步骤 6。
-6. 落盘判据：源 md 位于用户本地视频转录输出目录（如 `D:\bilibili\output\`）下时，落盘到其所属 `output/<视频名>/学习包/`（`<视频名>` 取源 md 的父目录名）；否则一律落盘到源 md 同级 `学习包/` 目录。二选一，禁止自造路径。
+6. 落盘判据：源 md 位于用户视频转录输出目录（如 `output/<视频名>/`）下时，落盘到其同级 `学习包/`（`<视频名>` 取源 md 的父目录名）；否则一律落盘到源 md 同级 `学习包/` 目录。二选一，禁止自造路径。
 
 ## 质量门禁（轻量实现）
 用随技能附带的 `scripts/validate.js`（Node，零第三方依赖）对学习包目录执行校验：`node scripts/validate.js <学习包目录>`。无 Node 环境时降级为人工逐项核对下述规则。
@@ -38,25 +51,30 @@ agent_created: true
 - ①：`/^## 智能摘要/` 且 `### ` 章节数 3–8。
 - ⑤/⑥：各节标题齐全，⑤ 含 📹 与 ➕，⑥ 含 `- [ ]`。
 
-## 坑（本机已踩）
+## 坑（已踩，平台无关）
 - **转录稿 ASR 误识**：常见如"伏利液"→傅里叶、"梁立坤"→LeCun、"看望Lusion"→LeNet、"线形式不变系统"→LTI、"惩罚"→乘法。用标准术语，在 ⑤/⑥ 做澄清，勿歪曲原意、勿编造。
 - **mermaid 节点禁用字符**：`[ ] ( ) " '` 会破坏解析，时间戳放大纲。
-- **safe-delete 钩子**：本环境 `rm` 可能被拦截；校验脚本可留作审计产物，勿强行删除。
-- **任务状态偶发 EPERM**：TaskUpdate 瞬时 rename 失败可重试一次。
+- **删除前先确认**：部分平台有删除保护，`rm` 可能被拦截；校验脚本可留作审计产物，勿强行删除。
+- **写盘/状态工具偶发失败**：工具瞬时失败（如 EPERM）可重试一次，再失败应明确报告而不是静默跳过。
+- **跨平台路径**：Windows 用 `\` 与 `%USERPROFILE%`；macOS/Linux 用 `/` 与 `$HOME`。落盘判据两条规则在任何平台都不变。
 
 ## 输出
 学习包目录含 6 文件：`①智能摘要.md ②术语表与通俗解释.md ③知识导图.md ④动画表达.html ⑤补充知识.md ⑥深度学习与理解文档.md`。
 生成后可用随技能附带的 `scripts/validate.js` 复跑质量门禁：`node scripts/validate.js <学习包目录>`。
 
-## 安装（开源版）
+## 安装（通用版：任何 AI Agent 都能用）
 
-本技能是标准 WorkBuddy / Claude-style 技能包，`SKILL.md` 含 frontmatter（`name` + `description` 触发词）。安装方式任选其一：
+```bash
+# 方式一：clone 整个仓库后，把技能目录放进你的平台技能目录
+git clone https://github.com/Asaceoo/bili-note-skills.git
+cp -r bili-note-skills/skills/bili-content-enhance ~/.workbuddy/skills/   # 换成你的平台目录
 
-- **手动**：从仓库 `skills/bili-content-enhance/` 取出整个目录，复制到你的技能目录，例如 `~/.workbuddy/skills/bili-content-enhance/` 或 `~/.claude/skills/bili-content-enhance/`。
-- **git clone**：`git clone https://github.com/Asaceoo/bili-note-skills.git`，然后 `cp -r bili-note-skills/skills/bili-content-enhance ~/.workbuddy/skills/`。
-- **sparse checkout**：`git clone --filter=blob:none --sparse <仓库> && git sparse-checkout set skills/bili-content-enhance`
+# 方式二：只取这一个技能（sparse checkout）
+git clone --filter=blob:none --sparse https://github.com/Asaceoo/bili-note-skills.git
+cd bili-note-skills && git sparse-checkout set skills/bili-content-enhance
+```
 
-使用前提：你会用 AI 编程助手（如 WorkBuddy / Claude Code / Codex），并有一份带 `[mm:ss]` 时间戳的 B 站转录稿 markdown（可用 bili-note / Bili-Note 工具抓取转写）。本技能不依赖任何外部 API 密钥，由当前 AI 模型直接执行 6 类提示词。
+使用前提：任何能读写本地文件、能生成 Markdown/HTML 的 AI Agent（或人），加一份带 `[mm:ss]` 时间戳的 B 站转录稿（可用 bili-note / Bili-Note 抓取转写）。本技能不依赖任何外部 API 密钥；门禁需要 Node 14+，没有 Node 时按上面的规则人工核对。
 
 ### 前置：提示词规范文件
 `references/ai_learning_prompts.md`（v3.1）是 6 类提示词的完整规范（输出契约表、质量门禁、风格护栏层）。请勿删除该文件；若缺失，技能会以降级契约继续运行（见流程第 2 步）。

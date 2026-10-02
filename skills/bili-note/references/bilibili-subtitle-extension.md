@@ -10,7 +10,7 @@
 
 ## 与 bili-note 的关系
 
-bili-note 默认走**服务端**抓字幕（B站公开接口、`web-access` 登录态、必要时本地 ASR）。扩展则运行在**用户浏览器**里，两者的互补点：
+bili-note 默认走**服务端**抓字幕（B站公开接口、浏览器自动化通道的登录态、必要时本地 ASR）。扩展则运行在**用户浏览器**里，两者的互补点：
 
 - 当服务端接口拿不到字幕（例如某些只有 AI 字幕、登录态强校验的页面），扩展仍能在已登录的页面里把字幕**下载成 srt/vtt**。
 - bili-note 的笔记管线（归档、证据索引、`note_budget.json` 定标、评分）只认标准的结构化目录。**本 skill 提供一个桥接脚本 `scripts/import_subtitles.py`**，把扩展导出的 srt/vtt 转成 bili-note 的提取目录，并复用 `archive_bili_materials.py` 生成完整归档。
@@ -35,7 +35,7 @@ bili-note 默认走**服务端**抓字幕（B站公开接口、`web-access` 登�
 3. 运行桥接脚本，把导出文件导入 bili-note 的归档目录：
 
 ```powershell
-$skill = "$env:USERPROFILE\.workbuddy\skills\bili-note"
+$skill = "<改成你的 bili-note 目录绝对路径>"   # 例如 ~/.workbuddy/skills/bili-note 或 ~/.claude/skills/bili-note
 $py = "python"
 & $py "$skill\scripts\import_subtitles.py" `
   --input "路径\字幕1.srt" "路径\字幕2.vtt" `

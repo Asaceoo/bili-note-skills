@@ -7,18 +7,18 @@ description: Extract Bilibili videos and opus/article posts into readable Markdo
 - **一句话**：把 B 站视频、图文/动态转成可检索、带证据索引的 Markdown 学习笔记（学习型而非流水账）。
 - **适用场景**：用户要提取/提炼/总结 B 站视频或图文、把 B 站内容存进本地知识库、抓评论区、处理多 P 视频、获取 AI 字幕或转写音频时。
 - **类别**：内容提取 / 知识管理
-- **注意**：联网/登录态操作必须先走 `web-access`；网页 AI 字幕仅 Chrome + `web-access` 路线可用（Edge/Playwright 临时浏览器不等价）；音频转写兜底需 Qwen3-ASR 共享环境（与 DyNote 复用，勿重复装）；长视频字幕稀疏但核心在画面时须补关键帧/OCR/多模态视觉理解，无视觉能力须标注"有限整理"。
+- **注意**：联网/登录态操作必须先走「浏览器自动化通道」（任何能连上已登录浏览器的通道：CDP 代理、Playwright/Puppeteer 连接已有用户目录、浏览器扩展，或用户手动在页面里执行脚本；WorkBuddy 的 `web-access` 只是其中一种实现）；网页 AI 字幕要求「已登录 B 站的真实浏览器页面」，临时/无痕浏览器不等价；音频转写兜底需 Qwen3-ASR 共享环境（与 DyNote 复用，勿重复装）；长视频字幕稀疏但核心在画面时须补关键帧/OCR/多模态视觉理解，无视觉能力须标注"有限整理"。
 <!-- /中文备注 -->
 
 # Bili Note
 
 把 B站视频和图文动态变成可检索、可复用的 Markdown 知识笔记。视频优先拿字幕；字幕拿不到时再转写音频；图文优先抓正文、图片和代码块；用户要评论区时抓取评论并过滤无关讨论。
 
-联网或登录态操作必须先使用 `web-access`。
+联网或登录态操作必须先使用**浏览器自动化通道**（已登录的真实浏览器页面）。在 WorkBuddy 里它是 `web-access`；在 Claude Code / Cursor / Cline / 其他 Agent 里，用各自的 CDP 代理、Playwright/Puppeteer 或浏览器扩展等效替代。本 skill 的脚本只依赖一个通用 CDP 接口：`GET <cdp-base>/targets` 与 `GET <cdp-base>/eval?target=<id>`，默认基址 `http://localhost:3456`，可用 `--cdp-base` 覆盖。
 
-网页 AI 字幕当前只支持 Chrome + `web-access` 路线：让已登录的 B站页面自己请求字幕接口。不要把 Edge、Playwright 临时浏览器或原生 CDP 端口当成等价替代，除非脚本已经明确支持。
+网页 AI 字幕路线要求「已登录 B 站的真实浏览器页面」自己请求字幕接口（脚本不碰 Cookie）。不要用无痕窗口、临时 profile 或未登录的浏览器代替；只要你的通道能提供上面的 CDP 接口且页面已登录，任何浏览器（Chrome / Edge / Firefox）都可以。
 
-Bili Note 与 DyNote 共享可复用本地资源。默认共享目录是 `%USERPROFILE%\.cache\rimagination-notes`，Qwen3-ASR 环境默认是 `%USERPROFILE%\.cache\rimagination-notes\qwen3-asr-venv`。如果任一 skill 已经安装过 Qwen3-ASR，另一个 skill 必须优先复用，不要重复安装。Hugging Face、Whisper 和 faster-whisper 缓存按本机通用缓存复用。
+Bili Note 与 DyNote 共享可复用本地资源。默认共享目录是 `%USERPROFILE%\.cache\rimagination-notes`，Qwen3-ASR 环境默认是 `%USERPROFILE%\.cache\rimagination-notes\qwen3-asr-venv`。如果任一 skill 已经安装过 Qwen3-ASR，另一个 skill 必须优先复用，不要重复安装。Hugging Face、Whisper 和 faster-whisper 缓存按本机通用缓存复用。（macOS/Linux 上把 `%USERPROFILE%` 换成 `~` 或 `$HOME`，路径分隔符换成 `/`。）
 
 ## 字幕密度与视觉理解
 
@@ -36,7 +36,17 @@ B 站视频优先拿字幕，但字幕/转写不等于完整理解。长视频�
 第一次使用、换机器、用户怀疑依赖不全，或准备使用网页 AI 字幕 / 音频转写兜底时，先运行：
 
 ```powershell
-$skill = "$env:USERPROFILE\.workbuddy\skills\bili-note"
+# 通用：定位技能目录（按常见 Agent 技能目录自动探测；探测不到就手填）
+# macOS/Linux 上把 $env:USERPROFILE 换成 $HOME，路径分隔符换成 /
+$skill = @(
+    "$env:USERPROFILE\.workbuddy\skills\bili-note",
+    "$env:USERPROFILE\.claude\skills\bili-note",
+    "$env:USERPROFILE\.codex\skills\bili-note",
+    "$env:USERPROFILE\.cursor\skills\bili-note",
+    "$env:USERPROFILE\.gemini\skills\bili-note",
+    ".\skills\bili-note"
+) | Where-Object { Test-Path $_ } | Select-Object -First 1
+if (-not $skill) { $skill = "<改成你的 bili-note 目录绝对路径>" }
 $py = "python"
 & $py "$skill\scripts\check_environment.py"
 ```
@@ -47,7 +57,7 @@ $py = "python"
 - `browser_ai_subtitles=OK`：当公开接口只有 `ai-zh` 且 `subtitle_url` 为空时，走 Chrome + `web-access` 网页 AI 字幕。
 - `audio_asr_fallback=OK`：只有字幕和网页 AI 字幕都不可得、且用户确实需要完整转写时，才走音频转写。中文或未指定语言优先共享 Qwen3-ASR；明确外语视频优先 Whisper 系后端。
 - 某个增强能力缺失时，只说明该路线暂不可用；不要把它说成整个 skill 不可用。
-- 网页登录态只通过 `web-access` 已授权的 Chrome 页面使用；不要读取或复制 Cookie/profile，不要强制结束用户浏览器进程。没有 Chrome + `web-access` 时就跳过网页 AI 字幕并说明覆盖范围。
+- 网页登录态只通过你自己的浏览器自动化通道里已授权的已登录页面使用；不要读取或复制 Cookie/profile，不要强制结束用户浏览器进程。没有可用的已登录浏览器通道时，就跳过网页 AI 字幕并说明覆盖范围。
 
 ## 默认流程
 
@@ -68,12 +78,32 @@ $py = "python"
 
 ## 常用命令
 
-在 PowerShell 中先设定 skill 路径：
+先设定 skill 路径。**PowerShell（Windows）**：
 
 ```powershell
-$skill = "$env:USERPROFILE\.workbuddy\skills\bili-note"
+# 通用：定位技能目录（按常见 Agent 技能目录自动探测；探测不到就手填）
+# macOS/Linux 上把 $env:USERPROFILE 换成 $HOME，路径分隔符换成 /
+$skill = @(
+    "$env:USERPROFILE\.workbuddy\skills\bili-note",
+    "$env:USERPROFILE\.claude\skills\bili-note",
+    "$env:USERPROFILE\.codex\skills\bili-note",
+    "$env:USERPROFILE\.cursor\skills\bili-note",
+    "$env:USERPROFILE\.gemini\skills\bili-note",
+    ".\skills\bili-note"
+) | Where-Object { Test-Path $_ } | Select-Object -First 1
+if (-not $skill) { $skill = "<改成你的 bili-note 目录绝对路径>" }
 $py = "python"
 ```
+
+**bash / zsh（macOS、Linux、WSL、Git Bash）**
+
+```bash
+SKILL_DIR="$(ls -d "$HOME"/.workbuddy/skills/bili-note "$HOME"/.claude/skills/bili-note "$HOME"/.codex/skills/bili-note "$HOME"/.cursor/skills/bili-note ./skills/bili-note 2>/dev/null | head -1)"
+[ -z "$SKILL_DIR" ] && SKILL_DIR="<改成你的 bili-note 目录绝对路径>"
+PY="$(command -v python || command -v python3)"
+```
+
+> 下文 PowerShell 里的 `& $py "$skill\scripts\xxx.py"`，在 bash 中等价于 `"$PY" "$SKILL_DIR/scripts/xxx.py"`；Windows 示例路径 `D:\...` 在 macOS/Linux 换成 `/` 路径即可。
 
 ### 0. 检查依赖和可用路线
 
@@ -113,7 +143,7 @@ $py = "python"
 --no-download-images
 ```
 
-如果普通接口没有字幕，但网页播放器能拿到 AI 字幕，先用 `web-access` 打开已登录 Chrome 里的视频页并取得 target id，然后加：
+如果普通接口没有字幕，但网页播放器能拿到 AI 字幕，先用浏览器自动化通道打开已登录浏览器里的视频页并取得 target id，然后加：
 
 ```powershell
 --browser-target "CDP_TARGET_ID"
@@ -141,13 +171,13 @@ $py = "python"
 
 ### 4. 下载网页 AI 字幕
 
-当 `subtitle_probe.json` 里有 `ai-zh`，但 `subtitle_url` 为空时，使用这条路线。当前脚本需要 Chrome + `web-access` 的 `/targets` 和 `/eval` 代理接口；原生 Edge/Chrome DevTools 端口不能直接传给这个脚本。
+当 `subtitle_probe.json` 里有 `ai-zh`，但 `subtitle_url` 为空时，使用这条路线。当前脚本需要一个 CDP 代理接口：`GET <cdp-base>/targets` 与 `GET <cdp-base>/eval?target=<id>`，默认基址 `http://localhost:3456`，可用 `--cdp-base` 覆盖。WorkBuddy 的 `web-access` 原生满足；其他平台可用 Playwright、Puppeteer、CDP 转发或一个小代理暴露这两个接口。
 
-1. 用 `web-access` 打开已登录 Chrome 中的 B站视频页，确认页面已加载。
+1. 用你的浏览器自动化通道打开已登录浏览器中的 B站视频页（Chrome/Edge/Firefox 均可，只要通道能提供上面的 CDP 接口且页面已登录），确认页面已加载。
 2. 查看浏览器 target id：
 
 ```powershell
-curl.exe -s http://localhost:3456/targets
+curl.exe -s http://localhost:3456/targets    # 端口不同就换成你的 cdp-base，并在脚本里传 --cdp-base
 ```
 
 3. 下载 AI 字幕：
@@ -374,6 +404,23 @@ Get-Content -Encoding UTF8 "D:\knowledge\知识库\Rag技术\原始材料\BVxxxx
 ```
 
 注意：扩展的「AI 总结/翻译」是独立的浏览器内功能，与 bili-note 的笔记生成互不替代；这里整合的是它的**字幕导出能力**，作为服务端抓字幕的补充来源，而不是用扩展代替 bili-note 的提炼流程。
+
+## 跨平台与 Agent 兼容性
+
+本 skill 不绑定任何 AI Agent 平台：脚本只用 Python 3.10+ 标准库，`SKILL.md` 是唯一入口，联网路线只要求「一个能连上已登录浏览器的 CDP 通道」。
+
+| 平台 / 形态 | 怎么用 |
+|---|---|
+| WorkBuddy / CodeBuddy | 放到 `~/.workbuddy/skills/bili-note/` |
+| Claude Code / Claude Desktop | 放到 `~/.claude/skills/bili-note/` |
+| Codex CLI | 放到 `~/.codex/skills/bili-note/` |
+| Cursor / Cline / Roo Code / Continue | 放到 `.cursor/skills/` 或等价规则目录 |
+| Gemini CLI / OpenHands / Aider | 把 `SKILL.md` 作为项目规则或自定义指令引入 |
+| WPS AI / 豆包 / 通义 / 不支持技能目录的助手 | 把 `SKILL.md` 全文贴进系统提示词，或作为上下文文件一起发给模型 |
+| 纯手工（无 Agent） | 直接按「常用命令」跑脚本，脚本本身不依赖 Agent |
+
+- 命令示例默认 Windows PowerShell；macOS/Linux 用上面的 bash 写法、路径分隔符用 `/`。
+- 浏览器自动化通道不限实现：只要能提供 `GET <cdp-base>/targets` 与 `GET <cdp-base>/eval?target=<id>`（默认 `http://localhost:3456`，可用 `--cdp-base` 覆盖）即可，WorkBuddy 的 `web-access` 只是其中一种。
 
 ## 相关文件
 

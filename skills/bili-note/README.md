@@ -144,7 +144,7 @@ Bili Note 和 DyNote 会共享可复用资源。默认共享目录是：
 | 层级 | 用来做什么 | 需要什么 | 缺失时怎么办 |
 | --- | --- | --- | --- |
 | 必需 | 启动 skill、抓公开元数据、整理已有材料 | Python 3.10+、已安装本 skill、能访问 B 站公开接口 | 先修复 Python、网络或重新安装 skill |
-| 登录浏览器 | 网页 AI 字幕 | Chrome、`web-access`、当前 Chrome 已登录 B 站并打开视频页 | 没有时跳过网页 AI 字幕，说明覆盖范围 |
+| 登录浏览器 | 网页 AI 字幕 | 已登录 B 站的真实浏览器页面 + 一个提供 `/targets`、`/eval` 的 CDP 代理（WorkBuddy 的 `web-access` 只是其中一种实现） | 没有时跳过网页 AI 字幕，说明覆盖范围 |
 | 中文转写 | 中文字幕不可用时做高可读转写 | `ffmpeg`、共享 Qwen3-ASR 环境 | 运行 `scripts/setup_qwen_asr_env.py`，两个 skill 共用 |
 | 外语转写 | 外语视频转写 | `ffmpeg`、Whisper / faster-whisper | 只有外语视频或 Qwen 不适合时再装 |
 | 下载兜底 | B 站公开音频下载失败时兜底 | `yt-dlp` | 需要时再装，不是默认依赖 |
@@ -160,9 +160,9 @@ Bili Note 默认优先用字幕，但长视频的字幕/转写如果明显很少
 
 ## 登录和隐私
 
-网页 AI 字幕路线只使用 Chrome + `web-access`：让已登录的 B 站页面自己请求字幕接口。Bili Note 不读取、不导出、不保存 Cookie、localStorage、浏览器 profile 或登录 token。
+网页 AI 字幕路线只使用「已登录的真实浏览器页面」自己请求字幕接口（经一个通用 CDP 代理中转，WorkBuddy 里是 `web-access`，其他平台用等价通道即可）。Bili Note 不读取、不导出、不保存 Cookie、localStorage、浏览器 profile 或登录 token。
 
-如果没有可用 Chrome 登录态，Bili Note 会跳过网页 AI 字幕，改用公开字幕、图文正文、评论、音频转写或有限材料整理，并明确说明覆盖范围。Edge、Playwright Chromium 和原生浏览器 CDP 端口目前不能直接替代这条路线。
+如果没有可用 Chrome 登录态，Bili Note 会跳过网页 AI 字幕，改用公开字幕、图文正文、评论、音频转写或有限材料整理，并明确说明覆盖范围。未登录的临时浏览器窗口不能直接替代这条路线。
 
 ## 写笔记的原则
 
@@ -176,7 +176,7 @@ Bili Note 默认优先用字幕，但长视频的字幕/转写如果明显很少
 
 ## 相关文件
 
-- `SKILL.md`：Codex 使用这个 skill 时读取的完整工作流说明。
+- `SKILL.md`：Agent 使用这个 skill 时读取的完整工作流说明（不绑定任何平台；不支持技能目录的助手可直接把全文作为系统提示词）。
 - `scripts/check_environment.py`：检查核心工作流、B 站公开接口、网页 AI 字幕、音频转写和测试依赖是否可用。
 - `scripts/setup_qwen_asr_env.py`：创建或复用共享 Qwen3-ASR 环境，默认位于 `%USERPROFILE%\.cache\rimagination-notes\qwen3-asr-venv`。
 - `scripts/run_qwen_asr.py`：调用 Qwen3-ASR-0.6B，可按 chunk 分段避免显存溢出。
