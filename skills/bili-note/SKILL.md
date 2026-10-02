@@ -54,7 +54,7 @@ $py = "python"
 根据检查结果选择路线：
 
 - `public_subtitles_comments_archive=OK`：优先走默认字幕/图文、评论和归档流程。
-- `browser_ai_subtitles=OK`：当公开接口只有 `ai-zh` 且 `subtitle_url` 为空时，走 Chrome + `web-access` 网页 AI 字幕。
+- `browser_ai_subtitles=OK`：当公开接口只有 `ai-zh` 且 `subtitle_url` 为空时，走「网页 AI 字幕」流程（已登录浏览器页面 + 能暴露 `/targets`、`/eval` 的 CDP 代理）。
 - `audio_asr_fallback=OK`：只有字幕和网页 AI 字幕都不可得、且用户确实需要完整转写时，才走音频转写。中文或未指定语言优先共享 Qwen3-ASR；明确外语视频优先 Whisper 系后端。
 - 某个增强能力缺失时，只说明该路线暂不可用；不要把它说成整个 skill 不可用。
 - 网页登录态只通过你自己的浏览器自动化通道里已授权的已登录页面使用；不要读取或复制 Cookie/profile，不要强制结束用户浏览器进程。没有可用的已登录浏览器通道时，就跳过网页 AI 字幕并说明覆盖范围。
